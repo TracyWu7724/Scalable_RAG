@@ -17,7 +17,7 @@ This project builds an end-to-end RAG pipeline over 36 Henkel LOCTITE product PD
 
 ```bash
 # Clone the repository
-git clone <repo-url> && cd RAG
+git clone https://github.com/TracyWu7724/Scalable_LLM.git && cd Scalable_LLM
 
 # Install dependencies
 pip install -r requirements.txt
@@ -102,3 +102,5 @@ Generation time comparison between Gemini API and local Gemma model.
 * add distributed system setting by managing background work queue, multi-instance API and load balancer
 * explore cheaper option of AWS EC2
 * add more user-friendly UI via TypeScript in React
+
+
