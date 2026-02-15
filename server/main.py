@@ -10,17 +10,17 @@ import asyncio
 import os
 import uuid
 
-from services.faiss_rag import myRAG_API
-from db import init_db, async_session, crud
-from db.models import User
-from auth import get_current_user, hash_password
-from schemas import (
+from .services.faiss_rag import myRAG_API
+from .db import init_db, async_session, crud
+from .db.models import User
+from .auth import get_current_user, hash_password
+from .schemas import (
     AskRequest, AskResponse, UserCreate, UserResponse,
     ConversationSummary, ConversationDetail,
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-EMBEDDINGS_DIR = os.path.join(BASE_DIR, "embeddings")
+EMBEDDINGS_DIR = os.getenv("EMBEDDINGS_DIR", os.path.join(BASE_DIR, "embeddings"))
 
 rag_cache = {}
 
@@ -81,8 +81,12 @@ async def timeout_wrapper(fn, timeout=120):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db()
-    print("Database tables created.")
+    try:
+        await init_db()
+        print("Database tables created.")
+    except Exception as e:
+        # Another instance may have already created the tables (race condition)
+        print(f"init_db skipped (tables likely already exist): {e}")
     yield
 
 
@@ -193,4 +197,10 @@ async def list_llm_models():
 
 @app.get("/health")
 async def health_check():
+    from sqlalchemy import text
+    try:
+        async with async_session() as session:
+            await session.execute(text("SELECT 1"))
+    except Exception:
+        raise HTTPException(status_code=503, detail="Database unreachable")
     return {"status": "ok"}

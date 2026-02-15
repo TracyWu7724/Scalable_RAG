@@ -3,6 +3,27 @@
 
 A Retrieval-Augmented Generation (RAG) system that answers technical questions about Henkel LOCTITE adhesive products by retrieving information from Safety Data Sheets (SDS) and generating answers with LLMs.
 
+## Architecture
+
+```
+  Streamlit (port 8501)
+       │
+       ▼
+  Nginx LB (port 8000)
+    ┌───┴───┐
+    ▼       ▼
+  api-1   api-2    (internal port 8000 each)
+    │       │
+    ├───────┤
+    ▼       ▼
+ PostgreSQL    Shared embeddings volume (read-only)
+```
+
+5 containers: `nginx`, `api-1`, `api-2`, `streamlit`, `db`
+
+- **API layer is stateless** — conversations persist in PostgreSQL, auth is HTTP Basic, and each API instance builds its own in-process RAG cache from the shared FAISS/embeddings volume.
+- **Nginx** load-balances across the two API instances using `least_conn`.
+
 ## Overview
 
 This project builds an end-to-end RAG pipeline over 36 Henkel LOCTITE product PDFs. The system:
@@ -11,37 +32,37 @@ This project builds an end-to-end RAG pipeline over 36 Henkel LOCTITE product PD
 2. **Embeds** text chunks using sentence transformer models and stores them in a FAISS vector index for fast similarity search.
 3. **Retrieves** relevant chunks at query time using FAISS cosine similarity, with optional cross-encoder reranking and product-scoped search.
 4. **Generates** answers by augmenting an LLM prompt with retrieved context — supports both Google Gemma model and the Google Gemini API.
-5. **Serves** the pipeline through a FastAPI backend and a Streamlit chat UI.
+5. **Serves** the pipeline through a FastAPI backend (2 instances + Nginx LB) and a Streamlit chat UI.
 
-## Installation
+## Quick Start
+
+### Prerequisites
+
+- Docker and Docker Compose
+- A Google Gemini API key
+
+### Setup
 
 ```bash
 # Clone the repository
 git clone https://github.com/TracyWu7724/Scalable_LLM.git && cd Scalable_LLM
 
-# Install dependencies
-pip install -r requirements.txt
+# Create .env from example
+cp .env.example .env
+# Edit .env and set your GEMINI_API_KEY
 
-# Set your Gemini API key (required for the API-based RAG backend)
-echo "GEMINI_API_KEY=<your-key>" > .env
+# Build and start all 5 containers
+docker compose up --build
 ```
 
-## Usage
+Then open `http://localhost:8501` for the Streamlit UI, or call the API directly at `http://localhost:8000`.
 
-### Run locally
-
-```bash
-# Start the FastAPI backend (port 8000) and Streamlit UI (port 8501)
-bash run.sh
-```
-
-Then open `http://localhost:8501` in your browser, select an embedding model, and start asking questions.
-
-### Run with Docker
+### Verify
 
 ```bash
-docker build -t henkel-rag .
-docker run -p 8000:8000 -p 8501:8501 --env-file .env henkel-rag
+# Health check (via Nginx → one of the API instances)
+curl http://localhost:8000/health
+# → {"status": "ok"}
 ```
 
 ### Rebuild embeddings from PDFs (optional)
@@ -56,6 +77,38 @@ preprocessor.save_corpus()
 # Step 2: Generate embeddings and FAISS index
 data = EmbedProcess.from_corpus("corpus.jsonl", embed_model_name="BAAI/bge-base-en-v1.5")
 data.save_embeddings(output_dir="embeddings")
+```
+
+## Project Structure
+
+```
+Scalable_RAG/
+├── nginx/
+│   └── nginx.conf              # Nginx load balancer config
+├── api/
+│   ├── Dockerfile              # Streamlit container
+│   └── app.py                  # Streamlit chat UI
+├── server/
+│   ├── Dockerfile              # FastAPI container
+│   ├── requirements.txt        # Python dependencies (API only)
+│   ├── __init__.py
+│   ├── main.py                 # FastAPI application
+│   ├── auth.py                 # HTTP Basic auth
+│   ├── schemas.py              # Pydantic models
+│   ├── services/
+│   │   └── faiss_rag.py        # RAG pipeline (FAISS + Gemini)
+│   └── db/
+│       ├── __init__.py
+│       ├── models.py           # SQLAlchemy models
+│       ├── session.py          # Async DB engine
+│       └── crud.py             # DB operations
+├── pipelines/                  # Offline data tooling
+│   ├── data/                   # Source PDFs and datasets
+│   ├── embeddings/             # Pre-built FAISS indices
+│   └── data_preprocessing.py   # PDF → embeddings pipeline
+├── docker-compose.yml          # 5-service deployment
+├── .env.example                # Required environment variables
+└── README.md
 ```
 
 ## Evaluation
@@ -98,9 +151,5 @@ Generation time comparison between Gemini API and local Gemma model.
 
 
 ## Future TODO
-* support multi-turn conversation by storing previous chat history and query rewriting
-* add distributed system setting by managing background work queue, multi-instance API and load balancer
-* explore cheaper option of AWS EC2
-* add more user-friendly UI via TypeScript in React
-
-
+1. add multiple LLM endpoints
+2. add multiple different price-level LLM providers

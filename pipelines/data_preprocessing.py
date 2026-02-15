@@ -1,3 +1,8 @@
+"""
+This py file handles PDF parsing to corpus, corpus to embeddings, embeddings stored in FAISS.
+
+"""
+
 import os
 import json
 import re
@@ -330,7 +335,7 @@ class EmbedProcess:
 if __name__ == "__main__":
     # Step 1: Process PDFs and create corpus
     preprocessor = DataPreprocessor(
-        input_dir="./Data",
+        input_dir="./data",
         output_path="./corpus.jsonl"
     )
     preprocessor.save_corpus()

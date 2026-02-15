@@ -1,7 +1,8 @@
+import os
 import streamlit as st
 import requests
 
-API_BASE = "http://localhost:8000"
+API_BASE = os.environ.get("API_BASE", "http://localhost:8000")
 
 AVAILABLE_MODELS = [
     "BAAI_bge-base-en-v1-5",

@@ -2,9 +2,9 @@ import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
-from db.session import async_session
-from db.crud import get_user_by_username
-from db.models import User
+from .db.session import async_session
+from .db.crud import get_user_by_username
+from .db.models import User
 
 security = HTTPBasic()
 

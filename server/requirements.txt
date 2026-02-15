@@ -1,4 +1,3 @@
-# below are for RAG model and backend development
 sentence-transformers>=2.2.0
 faiss-cpu>=1.7.4
 numpy>=1.24.0
@@ -6,12 +5,9 @@ fastapi>=0.104.0
 pydantic>=2.0.0
 uvicorn>=0.24.0
 python-dotenv>=1.0.0
-streamlit
-requests
 sqlalchemy[asyncio]
 asyncpg
 psycopg2-binary
 bcrypt
 google-genai>=1.0.0
 transformers>=4.48.0
-
